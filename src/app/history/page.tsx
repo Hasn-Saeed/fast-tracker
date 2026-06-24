@@ -10,28 +10,49 @@ import {
   CartesianGrid,
 } from "recharts";
 
+type HistoryEntry = {
+  timestamp?: string | number;
+  formatted_timestamp?: string;
+  current_speed?: number;
+  speed?: number;
+};
+
 type Point = { timestamp: string; speed: number };
-const DEVICE_LIST = ["GPS_Logger_1", "GPS_Logger_2", /* Additional loggers will be added here as they're created */];
+const DEVICE_LIST = ["GPS_Logger_1", "GPS_Logger_2 (First Prototype)", /* Additional loggers can be added here as they're created */];
 
 export default function HistoryPage() {
   const [thing, setThing] = useState(DEVICE_LIST[0]);
   const [data, setData] = useState<Point[]>([]);
 
   useEffect(() => {
-    async function load() {
-      const res = await fetch(`/api/fetch?thing_name=${thing}`);
-      const json: any = await res.json();
-      // If Lambda returns a single item, wrap it in an array
-      const items = Array.isArray(json) ? json : [json];
-      setData(
-        items.map((entry) => ({
-          timestamp: new Date(entry.timestamp).toLocaleTimeString(),
-          speed: entry.current_speed as number,
-        }))
-      );
+  async function load() {
+    const res = await fetch(`/api/fetch?thing_name=${thing}`);
+
+    if (!res.ok) {
+      console.error(`Failed to fetch history data: HTTP ${res.status}`);
+      return;
     }
-    load();
-  }, [thing]);
+
+    const json = (await res.json()) as HistoryEntry | HistoryEntry[];
+
+    const items: HistoryEntry[] = Array.isArray(json) ? json : [json];
+
+    setData(
+      items.map((entry) => {
+        const rawTimestamp = entry.formatted_timestamp ?? entry.timestamp ?? "";
+
+        return {
+          timestamp: rawTimestamp
+            ? new Date(rawTimestamp).toLocaleTimeString()
+            : "—",
+          speed: entry.current_speed ?? entry.speed ?? 0,
+        };
+      })
+    );
+  }
+
+  load();
+}, [thing]);
 
   return (
     <div className="p-4">

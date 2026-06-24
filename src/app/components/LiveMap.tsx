@@ -1,68 +1,122 @@
 "use client";
 
-/**
- * Using React Leaflet, display a map which is updated live
- */
-
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import type L from "leaflet";          // leaflet types
+import {
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  useMap,
+  Polyline,
+} from "react-leaflet";
+import type { Student } from "@/app/data/students";
 import "leaflet/dist/leaflet.css";
 
-// Latitude and logitude saved into props
-type Props = { position: [number, number] };
+type Props = {
+  position: [number, number];
+  activeStudents: Student[];
+  routePoints?: [number, number][];
+  trailPoints?: [number, number][];
+};
 
-// Recenter map any time position changes
 function Recenter({ position }: { position: [number, number] }) {
-    const map = useMap(); 
-  
-    useEffect(() => {
-      map.setView(position);
-    }, [position, map]);
-  
-    return null;
-  }
-  
-// Import leaflet and render map
-export default function LiveMap({ position }: Props) {
-  const [leafletLoaded, setLeafletLoaded] = useState(false); // Set state to false until leaflet is imported
+  const map = useMap();
 
   useEffect(() => {
-    (async () => {
-      const Lmod = await import("leaflet");
-      const L: typeof import("leaflet") = (await import("leaflet")).default;
+    map.setView(position);
+  }, [position, map]);
 
-      // Marker icons
-      const iconUrl = (await import("leaflet/dist/images/marker-icon.png")).default;
-      const iconRetina = (await import("leaflet/dist/images/marker-icon-2x.png")).default;
-      const shadow = (await import("leaflet/dist/images/marker-shadow.png")).default;
+  return null;
+}
+
+export default function LiveMap({ position, activeStudents, routePoints = [], trailPoints = [],}: Props) {
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadLeaflet() {
+      const L = await import("leaflet");
+
+      const iconUrl = (await import("leaflet/dist/images/marker-icon.png"))
+        .default;
+      const iconRetinaUrl = (
+        await import("leaflet/dist/images/marker-icon-2x.png")
+      ).default;
+      const shadowUrl = (await import("leaflet/dist/images/marker-shadow.png"))
+        .default;
 
       L.Icon.Default.mergeOptions({
         iconUrl: iconUrl.src,
-        iconRetinaUrl: iconRetina.src,
-        shadowUrl: shadow.src,
+        iconRetinaUrl: iconRetinaUrl.src,
+        shadowUrl: shadowUrl.src,
       });
 
-      setLeafletLoaded(true); // Ready to proceed
-    })();
+      setLeafletLoaded(true);
+    }
+
+    loadLeaflet();
   }, []);
 
-  // Placeholder
-  if (!leafletLoaded) return <div className="flex-1">Loading map…</div>;
+  if (!leafletLoaded) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gray-100 text-sm text-gray-600">
+        Loading map…
+      </div>
+    );
+  }
 
   return (
-  <MapContainer
-    center={position}             // center on most recent position
-    zoom={13}
-    className="h-full w-full"     
-    scrollWheelZoom
-  >
-    <Recenter position={position} />
-    <TileLayer
-      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" // Currently using OSM but could change if needed
-      attribution="© OpenStreetMap contributors"
-    />
-    <Marker position={position} />
-  </MapContainer>
-);
+    <MapContainer
+      center={position}
+      zoom={15}
+      scrollWheelZoom={true}
+      className="h-full w-full"
+    >
+      <Recenter position={position} />
+
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="© OpenStreetMap contributors"
+      />
+
+      <Marker position={position}>
+        <Popup>
+          <div>
+            <strong>Bus current location</strong>
+            <br />
+            Lat: {position[0].toFixed(5)}
+            <br />
+            Lon: {position[1].toFixed(5)}
+          </div>
+        </Popup>
+      </Marker>
+
+      {activeStudents.map((student) => (
+        <Marker
+          key={student.tagId}
+          position={[student.stopLat, student.stopLon]}
+        >
+          <Popup>
+            <div>
+              <strong>{student.name}</strong>
+              <br />
+              {student.address}
+              <br />
+              Stop #{student.stopOrder}
+              {student.parentName && (
+                <>
+                  <br />
+                  Parent: {student.parentName}
+                </>
+              )}
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+      {routePoints.length > 1 && (
+        <Polyline positions={routePoints} />
+      )}
+      {trailPoints.length > 1 && <Polyline positions={trailPoints} />}
+      {routePoints.length > 1 && <Polyline positions={routePoints} />}
+    </MapContainer>
+  );
 }

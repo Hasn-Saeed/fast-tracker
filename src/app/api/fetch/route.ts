@@ -36,10 +36,12 @@ export async function GET(req: Request) {
       status: 200,
       headers: { "content-type": "application/json" },
     });
-  } catch (err: any) { // In case of failure, display error message (code is 500)
+  } catch (err: unknown) { // In case of failure, display error message (code 500)
+      const message = err instanceof Error ? err.message : "upstream fetch failed";
+
     return NextResponse.json(
-      { error: err.message ?? "upstream fetch failed" },
-      { status: 500 },
+      { error: message},
+      { status: 500}
     );
   }
 }
